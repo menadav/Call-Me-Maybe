@@ -32,9 +32,10 @@ class LlmManager:
         for prompt in self.calling:
             json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "function": "'
             full_prompt = (
+                f"Task: Select the correct function and extract argument in JSON. \n"
                 f"Functions: {defs_text}\n"
                 f"User request: {prompt.prompt}\n"
-                f"Response in JSON format:"
+                f"Response (JSON only):"
             )
             tokens = self.sdk.encode(full_prompt)
             results.append((tokens, json_prefill))
@@ -48,6 +49,8 @@ class LlmManager:
         valid_ids = [i for i in allowed_ids if i is not None]
         if not valid_ids:
             return int(np.argmax(logits_np))
+        max_idx = logits_np.shape[0]
+        valid_ids = [i for i in valid_ids if i < max_idx]
         constrained_logits = np.full_like(logits_np, -np.inf)
         for idx in valid_ids:
             constrained_logits[idx] = logits_np[idx]
@@ -62,20 +65,28 @@ class LlmManager:
         if current_text.endswith('"function": "'):
             return int(np.argmax(logi_np))
         if re.search(r'"function": "[^"]+"$', current_text):
-            if not current_text.endswith('",'):
-                return safe_get('",')
-        if current_text.count('{') > current_text.count('}'):
-            return int(np.argmax(logi_np))
+            res = self.vocabulary.get('",\n  "parameters": {')
+            if res is not None:
+                return self._get_next_token(logi_np, [res])
+            return safe_get('",')
+        if current_text.endswith('",'):
+            return safe_get('\n  "parameters": {')
         return int(np.argmax(logi_np))
 
     def output_json(self) -> None:
         tensors = self._interact_with_llm()
         for t , prefix in tensors:
             generated_json = prefix
-            prefix_tokens = self.sdk.encode(prefix)
+            prefix_tokens_raw = self.sdk.encode(prefix)
+            if hasattr(prefix_tokens_raw, "tolist"):
+                prefix_tokens = prefix_tokens_raw.flatten().tolist()
+            elif isinstance(prefix_tokens_raw, np.ndarray):
+                prefix_tokens = prefix_tokens_raw.tolist()
+            else:
+                prefix_tokens = list(prefix_tokens_raw)
             input_ids = t.flatten().tolist() + prefix_tokens
             limit = 0
-            while limit < 200:
+            while limit < 100:
                 limit += 1
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
                 if hasattr(logi, "detach"):
@@ -83,9 +94,17 @@ class LlmManager:
                 else:
                     logi_np = np.array(logi).flatten()
                 next_token_id = self._steps_output(logi_np, generated_json)
+                if next_token_id == self.vocabulary.get("</s>") or next_token_id == 2:
+                    break
                 input_ids.append(next_token_id)
                 word = self._decode_function(next_token_id)
                 generated_json += word
-                if "}" in word and "parameters" in generated_json:
+                if generated_json.count('{') == generated_json.count('}') and "function" in generated_json:
                     break
-            print(generated_json)
+            try:
+                clean_json = generated_json[:generated_json.rfind('}')+1]
+                obj = json.loads(clean_json)
+                final_results.append(obj)
+            except Exception:
+                print(f"Error parseando: {generated_json}")
+        print(json.dumps(final_results, indent=2, ensure_ascii=False))

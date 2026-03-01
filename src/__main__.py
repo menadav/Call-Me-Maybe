@@ -50,8 +50,10 @@ def main() -> None:
     except ValidationError as e:
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
-    except Exception:
-        sys.stderr.write("Error\n")
+    except Exception as e:
+        import traceback
+        sys.stderr.write(f"Error real: {type(e).__name__}: {e}\n")
+        traceback.print_exc() # Esto te dirá la línea exacta
         sys.exit(1)
 
 if __name__ == "__main__":
