@@ -49,7 +49,8 @@ class LlmManager:
         if not valid_ids:
             return int(np.argmax(logits_np))
         constrained_logits = np.full_like(logits_np, -np.inf)
-        constrained_logits[allowed_ids] = logits_np[allowed_ids]
+        for idx in valid_ids:
+            constrained_logits[idx] = logits_np[idx]
         return int(np.argmax(constrained_logits))
 
     def _steps_output(self, logi_np, current_text):
@@ -87,4 +88,4 @@ class LlmManager:
                 generated_json += word
                 if "}" in word and "parameters" in generated_json:
                     break
-        print(generated_json)
+            print(generated_json)
