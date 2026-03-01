@@ -1,5 +1,6 @@
 from typing import List, Any, Dict
 from src.filter import JsonDefinition, JsonCalling
+import re
 import json
 import numpy as np
 
@@ -29,13 +30,14 @@ class LlmManager:
             defs_text += f"\n- {func.name}({params}): {func.description}"
         results = []
         for prompt in self.calling:
+            json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "function": "'
             full_prompt = (
                 f"Functions: {defs_text}\n"
                 f"User request: {prompt.prompt}\n"
                 f"Response in JSON format:"
             )
             tokens = self.sdk.encode(full_prompt)
-            results.append(tokens)
+            results.append(tokens, json_prefill)
         return results
 
     def _decode_function(self, token_id) -> str:
@@ -51,49 +53,24 @@ class LlmManager:
         return int(np.argmax(constrained_logits))
 
     def _steps_output(self, logi_np, current_text):
-        def safe_get(key, ids=None):
-            if ids:
-                return self._get_next_token(logi_np, ids)
+        def safe_get(key):
             res = self.vocabulary.get(key)
             if res is not None:
                 return self._get_next_token(logi_np, [res])
             return int(np.argmax(logi_np))
-        num_quotes = current_text.count('"')
-        if not current_text:
-            return safe_get('{')
-        if current_text.endswith('{') or current_text.endswith(', ') or current_text.endswith(': '):
-            return safe_get('"')
-        if current_text.endswith('"'):
-            if num_quotes == 1:
-                return safe_get('prompt')
-            if num_quotes == 5:
-                return safe_get('function')
-            if num_quotes == 9:
-                return safe_get('parameters')
-        if current_text.endswith('prompt') or current_text.endswith('function') or current_text.endswith('parameters'):
-            return safe_get('"')
-        if current_text.endswith('":'):
-            return safe_get(' ')
-
-        if current_text.endswith('"'):
-            if num_quotes in [2, 6, 10]:
-                return safe_get(':')
-            if num_quotes in [4, 8]:
-                return safe_get(',')
-        if current_text.endswith(','):
-            return safe_get(' ')
-        if num_quotes == 12 and "parameters" in current_text:
-            if current_text.strip().endswith('}'):
-                return self.vocabulary.get(self.sdk.tokenizer.eos_token, int(np.argmax(logi_np)))
-            if current_text.count('{') > current_text.count('}'):
-                return safe_get('}')
-        return int(np.argmax(logi_np)
-)
+        if current_text.endswith('"function": "'):
+            return int(np.argmax(logi_np))
+        if re.search(r'"function": "[^"]+"$', current_text):
+            if not current_text.endswith('",'):
+                return safe_get('",')
+        if current_text.count('{') > current_text.count('}'):
+            return int(np.argmax(logi_np))
+        return int(np.argmax(logi_np))
 
     def output_json(self) -> str:
         tensors = self._interact_with_llm()
-        for t in tensors:
-            generated_json = ""
+        for t , prefix in tensors:
+            generated_json = prefix
             input_ids = t.flatten().tolist()
             while(1):
                 logi = self.sdk.get_logits_from_input_ids(input_ids)

@@ -35,10 +35,11 @@ def main() -> None:
         definitions = check_definitions(data_definition)
         sdk = Small_LLM_Model()
         llm_manager = LlmManager(definitions, calling, sdk)
-        file = llm_manager.output_json()
-        dict_json = json.loads(file)
-        validate_json = [FunctionCallResult(**item).model_dump() for item in dict_json]
-        output_json(args.output, validate_json)
+        llm_manager.output_json()
+        
+#        dict_json = json.loads(file)
+#        validate_json = [FunctionCallResult(**item).model_dump() for item in dict_json]
+#        output_json(args.output, validate_json)
     except (AttributeError, FileNotFoundError, ValueError) as e:
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
