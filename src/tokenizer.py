@@ -37,7 +37,7 @@ class LlmManager:
                 f"Response in JSON format:"
             )
             tokens = self.sdk.encode(full_prompt)
-            results.append(tokens, json_prefill)
+            results.append((tokens, json_prefill))
         return results
 
     def _decode_function(self, token_id) -> str:
@@ -67,7 +67,7 @@ class LlmManager:
             return int(np.argmax(logi_np))
         return int(np.argmax(logi_np))
 
-    def output_json(self) -> str:
+    def output_json(self) -> None:
         tensors = self._interact_with_llm()
         for t , prefix in tensors:
             generated_json = prefix
@@ -84,4 +84,4 @@ class LlmManager:
                 generated_json += word
                 if "}" in word and "parameters" in generated_json:
                     break
-        return generated_json
+        print(generated_json)
