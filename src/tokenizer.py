@@ -71,8 +71,11 @@ class LlmManager:
         tensors = self._interact_with_llm()
         for t , prefix in tensors:
             generated_json = prefix
-            input_ids = t.flatten().tolist()
-            while(1):
+            prefix_tokens = self.sdk.encode(prefix)
+            input_ids = t.flatten().tolist() + prefix_tokens
+            limit = 0
+            while limit < 200:
+                limit += 1
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
                 if hasattr(logi, "detach"):
                     logi_np = logi.detach().cpu().numpy().flatten()
