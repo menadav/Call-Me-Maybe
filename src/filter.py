@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, ValidationError
-from typing import Dict
+from typing import Dict, Any
 
 class JsonCalling(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -20,4 +20,4 @@ class JsonDefinition(BaseModel):
 class FunctionCallResult(BaseModel):
     prompt: str
     function: str
-    parameters: Dict[str, any]
+    parameters: Dict[str, Any]

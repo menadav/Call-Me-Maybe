@@ -3,6 +3,7 @@ PYTHON = $(UV) run python
 VENV_DIR = .venv
 INSTALLED_FLAG = $(VENV_DIR)/.installed
 GOINFRE_VENV = /goinfre/$(USER)/call_me_maybe_venv
+ARGS ?= --functions_definition data/input/functions_definition.json --input data/input/function_calling_tests.json
 
 export UV_CACHE_DIR = /goinfre/$(USER)/uv_cache
 export HF_HOME = /goinfre/$(USER)/huggingface_cache
@@ -22,10 +23,10 @@ $(INSTALLED_FLAG): pyproject.toml
 	@touch $(INSTALLED_FLAG)
 
 run: install
-	$(PYTHON) -m src.call_me_maybe
+	$(PYTHON) -m src $(ARGS)
 
 debug: install
-	$(PYTHON) -m pdb -m src.call_me_maybe
+	$(PYTHON) -m pdb -m src
 
 lint: install
 	$(UV) run flake8 src
