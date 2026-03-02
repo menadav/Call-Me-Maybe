@@ -73,6 +73,33 @@ class LlmManager:
             return safe_get('\n  "parameters": {')
         return int(np.argmax(logi_np))
 
+    def _parse_generated_json(self, text: str) -> dict | None:
+        try:
+            start_idx = text.find('{')
+            if start_idx == -1:
+                return None
+            count = 0
+            end_idx = -1
+            for i in range(start_idx, len(text)):
+                if text[i] == '{':
+                    count += 1
+                elif text[i] == '}':
+                    count -= 1
+                    if count == 0:
+                        end_idx = i
+                        break
+            if end_idx == -1:
+                return None
+            clean_str = text[start_idx:end_idx+1]
+            obj = json.loads(clean_str)
+            if "arguments" in obj and "parameters" not in obj:
+                obj["parameters"] = obj.pop("arguments")
+            if "name" in obj and "function" not in obj:
+                obj["function"] = obj.pop("name")
+            return obj
+        except Exception:
+            return None
+
     def output_json(self) -> None:
         tensors = self._interact_with_llm()
         final_results = []
@@ -96,20 +123,11 @@ class LlmManager:
                     logi_np = np.array(logi).flatten()
                 next_token_id = self._steps_output(logi_np, generated_json)
                 input_ids.append(next_token_id)
-                word = self._decode_function(next_token_id)
-                generated_json += word
+                generated_json += self._decode_function(next_token_id)
                 if generated_json.count('{') == generated_json.count('}') and "function" in generated_json:
                     break
-            try:
-                start_idx = generated_json.find('{')
-                end_idx = generated_json.rfind('}')
-                if start_idx != -1 and end_idx != -1:
-                    clean_json = generated_json[start_idx:end_idx+1]
-                    obj = json.loads(clean_json)
-                    final_results.append(obj)
-                else:
-                    print(f"Error parseando: {generated_json}")
-                    pass
-            except Exception as e:
-                print(f"Error parseando: {e}")
-        print(json.dumps(final_results, indent=2, ensure_ascii=False))
+                result_obj = self._parse_generated_json(generated_json)
+                if result_obj:
+                    final_results.append(result_obj)
+                    print(final_results)
+                    break
