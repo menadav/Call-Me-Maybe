@@ -4,7 +4,6 @@ import argparse
 import json
 
 try:
-    from pydantic import BaseModel, ValidationError
     import numpy as np
 except ImportError:
     sys.stderr.write("[ERROR] Run: make install\n")

@@ -23,7 +23,7 @@ class LlmManager:
         except Exception as e:
             raise ValueError(e)
 
-    def _interact_with_llm(self) -> list[list[int]]:
+    def _interact_with_llm(self) -> list[tuple]:
         defs_text: str = ""
         for func in self.definitions:
             params = ", ".join(func.parameters.keys())
@@ -39,7 +39,8 @@ class LlmManager:
                 f"Response (JSON only):"
             )
             tokens = self.sdk.encode(full_prompt)
-            results.append((tokens, json_prefill))
+            prefill_tokens = self._to_list(self.sdk.encode(json_prefill))
+            results.append((tokens, json_prefill, prefill_tokens))
         return results
 
     def _decode_function(self, token_id) -> str:
@@ -108,10 +109,37 @@ class LlmManager:
         except Exception:
             return None
 
+    def _to_list(self, tensor_data):
+        if hasattr(tensor_data, "flatten"):
+            return tensor_data.flatten().tolist()
+        elif isinstance(tensor_data, np.ndarray):
+            return tensor_data.tolist()
+        else:
+            return list(tensor_data)
+
+    def output_json(self) -> None:
+        final_results = []
+        for t, prefix, prefill_tokens in self._interact_with_llm():
+            generated_json = prefix
+            input_ids = self._to_list(t) + self._to_list(prefill_tokens)
+            for _ in range(200):
+                logi_np = np.array(self.sdk.get_logits_from_input_ids(input_ids)).flatten()
+                next_token_id = self._steps_output(logi_np, generated_json)
+                input_ids.append(next_token_id)
+                generated_json += self._decode_function(next_token_id)
+                if generated_json.count('{') == generated_json.count('}') and "function" in generated_json:
+                    break
+                result_obj = self._parse_generated_json(generated_json)
+                if result_obj:
+                    final_results.append(result_obj)
+                    break
+            print(final_results)
+
+"""
     def output_json(self) -> None:
         tensors = self._interact_with_llm()
         final_results = []
-        for t, prefix in tensors:
+        for t, prefix, prefill_tokens in tensors:
             generated_json = prefix
             prefix_tokens_raw = self.sdk.encode(prefix)
             if hasattr(prefix_tokens_raw, "tolist"):
@@ -139,3 +167,4 @@ class LlmManager:
                     final_results.append(result_obj)
                     break
         print(final_results)
+"""
