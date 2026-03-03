@@ -30,17 +30,12 @@ class LlmManager:
             defs_text += f"\n- {func.name}({params}): {func.description}"
         results = []
         for prompt in self.calling:
-            json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "name": "'
+            json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "function": "'
             full_prompt = (
-                "SYSTEM: You are a professional API assistant. "
-                "You must ONLY use the function names provided in the list. "
-                "Do not invent new function names.\n"
-                f"FUNCTIONS LIST:{defs_text}\n\n"
-                "EXAMPLE:\n"
-                "User: Greet Batman\n"
-                "Assistant: {\"prompt\": \"Greet Batman\", \"name\": \"fn_greet_person\", \"parameters\": {\"name\": \"Batman\"}}\n\n"
-                f"USER REQUEST: {prompt.prompt}\n"
-                "ASSISTANT (JSON):"
+                "Task: Convert request to JSON.\n"
+                f"Functions: {defs_text}\n"
+                f"Request: {prompt.prompt}\n"
+                "JSON Output:"
             )
             tokens = self.sdk.encode(full_prompt)
             results.append((tokens, json_prefill))
@@ -62,22 +57,27 @@ class LlmManager:
         return int(np.argmax(constrained_logits))
 
     def _steps_output(self, logi_np, current_text):
-        def safe_get(key):
-            res = self.vocabulary.get(key)
-            if res is not None:
-                return self._get_next_token(logi_np, [res])
-            return int(np.argmax(logi_np))
-        if current_text.endswith('"name": "'):
-            return int(np.argmax(logi_np))
-        if re.search(r'"name": "[^"]+"$', current_text):
-            res = self.vocabulary.get('",\n  "parameters": {') or self.vocabulary.get('", "parameters": {')
-            if res is not None:
-                return self._get_next_token(logi_np, [res])
-            return safe_get('",')
-        if current_text.endswith('",'):
-            return safe_get('\n  "parameters": {') or safe_get(' "parameters": {')
-        return int(np.argmax(logi_np))
+        def get_id(text):
+            return self.vocabulary.get(text)
 
+        def force(token_str):
+            tid = get_id(token_str)
+            if tid is not None:
+                return self._get_next_token(logi_np, [tid])
+            return None
+
+        if current_text.strip().endswith('"arguments":'):
+            return force(' {') or force('{') or int(np.argmax(logi_np))
+
+        if current_text.strip().endswith('"arguments'):
+            return force('":') or force('": ')
+
+        if current_text.endswith(' "') or current_text.endswith('\n  "'):
+            if '"arguments"' not in current_text and re.search(r'"function":\s*"[^"]+"', current_text):
+                return force('arguments')
+        if re.search(r'"function":\s*"[^"]+"$', current_text.strip()):
+            return force('",') or force(',') or force('", ') or int(np.argmax(logi_np))
+        return int(np.argmax(logi_np))
 
     def _parse_generated_json(self, text: str) -> dict | None:
         try:
@@ -139,11 +139,9 @@ class LlmManager:
                 input_ids.append(next_token_id)
                 generated_json += self._decode_function(next_token_id)
                 print(generated_json)
-                if generated_json.count('{') == generated_json.count('}') and "parameters" in generated_json:
-                    break
-                result_obj = self._parse_generated_json(generated_json)
-                if result_obj:
-                    print(result_obj)
-                    final_results.append(result_obj)
+                if generated_json.count('{') == generated_json.count('}') and '"arguments"' in generated_json:
+                    result_obj = self._parse_generated_json(generated_json)
+                    if result_obj:
+                        final_results.append(result_obj)
                     break
         print(final_results)
