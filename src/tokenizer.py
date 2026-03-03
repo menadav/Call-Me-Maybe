@@ -17,7 +17,7 @@ class LlmManager:
         self.sdk = sdk_instance
         try:
             vocab_path = self.sdk.get_path_to_vocab_file()
-            with open(vocab_path, 'r') as f:
+            with open(vocab_path, 'r', encoding='utf-8') as f:
                 self.vocabulary: Dict[str, int] = json.load(f)
             self.id_to_token = {v: k for k, v in self.vocabulary.items()}
         except Exception as e:
@@ -139,4 +139,3 @@ class LlmManager:
                     final_results.append(result_obj)
                     break
         print(final_results)
-        

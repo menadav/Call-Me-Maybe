@@ -18,19 +18,25 @@ from src.filter import FunctionCallResult
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Call Me Maybe - Function Calling Tool")
-    parser.add_argument("--functions_definition", type=str, 
+    parser = argparse.ArgumentParser(
+        description="Call Me Maybe - Function Calling Tool"
+        )
+    parser.add_argument("--functions_definition", type=str,
                         default="data/input/functions_definition.json")
-    parser.add_argument("--input", type=str, 
+    parser.add_argument("--input", type=str,
                         default="data/input/function_calling_tests.json")
-    parser.add_argument("--output", type=str, 
+    parser.add_argument("--output", type=str,
                         default="data/output/function_calling_results.json")
     args = parser.parse_args()
     try:
         if not os.path.exists(args.input):
-           raise FileNotFoundError(f"[ERROR] Path incorrect input: {args.input}")
+            raise FileNotFoundError(
+                f"[ERROR] Path incorrect input: {args.input}")
         if not os.path.exists(args.functions_definition):
-           raise FileNotFoundError(f"[ERROR] Path incorrect definitions {args.functions_definition}")
+            raise FileNotFoundError(
+                "[ERROR] Path incorrect definitions"
+                f"{args.functions_definition}"
+                )
         data_calling = read_json(args.input)
         calling = check_prompt(data_calling)
         data_definition = read_json(args.functions_definition)
