@@ -4,7 +4,7 @@ import argparse
 import json
 
 try:
-    import numpy as np
+    from pydantic import ValidationError
 except ImportError:
     sys.stderr.write("[ERROR] Run: make install\n")
     sys.exit(1)
@@ -13,7 +13,6 @@ from src.config_json import read_json, check_prompt, check_definitions
 from src.tokenizer import LlmManager
 from src.output import output_json
 from llm_sdk import Small_LLM_Model
-from src.filter import FunctionCallResult
 
 
 def main() -> None:
@@ -42,10 +41,8 @@ def main() -> None:
         definitions = check_definitions(data_definition)
         sdk = Small_LLM_Model()
         llm_manager = LlmManager(definitions, calling, sdk)
-        llm_manager.output_json()
-#        dict_json = json.loads(file)
-#        validate_json = [FunctionCallResult(**item).model_dump() for item in dict_json]
-#        output_json(args.output, validate_json)
+        validate_json = llm_manager.output_json()
+        output_json(args.output, validate_json)
     except (AttributeError, FileNotFoundError, ValueError) as e:
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
@@ -56,9 +53,7 @@ def main() -> None:
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
     except Exception as e:
-        import traceback
-        sys.stderr.write(f"Error real: {type(e).__name__}: {e}\n")
-        traceback.print_exc() # Esto te dirá la línea exacta
+        sys.stderr.write(e)
         sys.exit(1)
 
 

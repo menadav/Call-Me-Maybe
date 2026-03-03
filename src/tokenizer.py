@@ -27,14 +27,18 @@ class LlmManager:
         defs_text = ""
         for func in self.definitions:
             params = ", ".join(func.parameters.keys())
-            defs_text += f"\n- {func.name}({params}): {func.description}"
+            defs_text += f"\n- {func.name}({params}): {func.description},"
         results = []
         for prompt in self.calling:
-            json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "function": "'
+            safe_prompt = prompt.prompt.replace('"', '\\"')
+            json_prefill = (
+                f'{{\n  "prompt": "{safe_prompt}",'
+                '\n  "function": "'
+            )
             full_prompt = (
                 "Task: Convert request to JSON.\n"
                 f"Functions: {defs_text}\n"
-                f"Request: {prompt.prompt}\n"
+                f"Request: {safe_prompt}\n"
                 "JSON Output:"
             )
             tokens = self.sdk.encode(full_prompt)
@@ -65,18 +69,21 @@ class LlmManager:
             if tid is not None:
                 return self._get_next_token(logi_np, [tid])
             return None
-
+        if re.search(r'"function":\s*"[^"]+"$', current_text):
+            return force(', "parameters":') or force(',')
         if current_text.strip().endswith('"parameters":'):
             return force(' {') or force('{') or int(np.argmax(logi_np))
-
         if current_text.strip().endswith('"parameters'):
             return force('":') or force('": ')
-
-        if current_text.endswith(' "') or current_text.endswith('\n  "'):
-            if '"parameters"' not in current_text and re.search(r'"function":\s*"[^"]+"', current_text):
+        if current_text.endswith(' "') or current_text.endswith('\n"'):
+            if '"parameters"' not in current_text\
+                    and re.search(r'"function":\s*"[^"]+"', current_text):
                 return force('parameters')
         if re.search(r'"function":\s*"[^"]+"$', current_text.strip()):
-            return force('",') or force(',') or force('", ') or int(np.argmax(logi_np))
+            return force('", "parameters":') or \
+                   force(',') or \
+                   force(', "parameters":') or \
+                   int(np.argmax(logi_np))
         return int(np.argmax(logi_np))
 
     def _parse_generated_json(self, text: str) -> dict | None:
@@ -116,32 +123,25 @@ class LlmManager:
         except Exception:
             return None
 
-    def output_json(self) -> None:
+    def output_json(self) -> List[Dict[str, Any]]:
         tensors = self._interact_with_llm()
         final_results = []
         for t, prefix in tensors:
             generated_json = prefix
             prefix_tokens_raw = self.sdk.encode(prefix)
-            if hasattr(prefix_tokens_raw, "tolist"):
-                prefix_tokens = prefix_tokens_raw.flatten().tolist()
-            elif isinstance(prefix_tokens_raw, np.ndarray):
-                prefix_tokens = prefix_tokens_raw.tolist()
-            else:
-                prefix_tokens = list(prefix_tokens_raw)
+            prefix_tokens = prefix_tokens_raw.flatten().tolist()
             input_ids = t.flatten().tolist() + prefix_tokens
             for _ in range(150):
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
-                if hasattr(logi, "detach"):
-                    logi_np = logi.detach().cpu().numpy().flatten()
-                else:
-                    logi_np = np.array(logi).flatten()
+                logi_np = np.array(logi).flatten()
                 next_token_id = self._steps_output(logi_np, generated_json)
                 input_ids.append(next_token_id)
                 generated_json += self._decode_function(next_token_id)
-                if generated_json.count('{') == generated_json.count('}') and '"parameters"' in generated_json:
+                if generated_json.count('{') == generated_json.count('}') \
+                        and '"parameters"' in generated_json:
                     print(generated_json)
                     result_obj = self._parse_generated_json(generated_json)
                     if result_obj:
                         final_results.append(result_obj)
                     break
-        print(final_results)
+        return final_results
