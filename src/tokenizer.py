@@ -32,9 +32,9 @@ class LlmManager:
         for prompt in self.calling:
             json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "name": "'
             full_prompt = (
-                "Task: Select the correct function "
+                "Task: Select the correct name function "
                 "name and extract argument in JSON. \n"
-                f"Functions: {defs_text}\n"
+                f"Name: {defs_text}\n"
                 f"User request: {prompt.prompt}\n"
                 f"Response (JSON only):"
             )
