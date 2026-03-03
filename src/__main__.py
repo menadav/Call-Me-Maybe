@@ -16,6 +16,7 @@ from src.output import output_json
 from llm_sdk import Small_LLM_Model
 from src.filter import FunctionCallResult
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Call Me Maybe - Function Calling Tool")
     parser.add_argument("--functions_definition", type=str, 
@@ -37,7 +38,6 @@ def main() -> None:
         sdk = Small_LLM_Model()
         llm_manager = LlmManager(definitions, calling, sdk)
         llm_manager.output_json()
-        
 #        dict_json = json.loads(file)
 #        validate_json = [FunctionCallResult(**item).model_dump() for item in dict_json]
 #        output_json(args.output, validate_json)
@@ -56,5 +56,6 @@ def main() -> None:
         traceback.print_exc() # Esto te dirá la línea exacta
         sys.exit(1)
 
+
 if __name__ == "__main__":
-    main() 
+    main()

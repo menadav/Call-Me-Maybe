@@ -4,6 +4,7 @@ import re
 import json
 import numpy as np
 
+
 class LlmManager:
     def __init__(
         self,
@@ -19,9 +20,8 @@ class LlmManager:
             with open(vocab_path, 'r') as f:
                 self.vocabulary: Dict[str, int] = json.load(f)
             self.id_to_token = {v: k for k, v in self.vocabulary.items()}
-        except Exception:
-            raise ValueError("Error")
-
+        except Exception as e:
+            raise ValueError(e)
 
     def _interact_with_llm(self) -> list[list[int]]:
         defs_text: str = ""
@@ -32,7 +32,8 @@ class LlmManager:
         for prompt in self.calling:
             json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "name": "'
             full_prompt = (
-                f"Task: Select the correct function name and extract argument in JSON. \n"
+                "Task: Select the correct function "
+                "name and extract argument in JSON. \n"
                 f"Functions: {defs_text}\n"
                 f"User request: {prompt.prompt}\n"
                 f"Response (JSON only):"
@@ -96,6 +97,13 @@ class LlmManager:
                 obj["parameters"] = obj.pop("arguments")
             if "name" in obj and "function" not in obj:
                 obj["function"] = obj.pop("name")
+            params = obj.get("parameters")
+            if isinstance(params, list):
+                obj["parameters"] = {
+                    item['name']: item.get('value')
+                    for item in params
+                    if isinstance(item, dict) and 'name' in item
+                }
             return obj
         except Exception:
             return None
@@ -103,7 +111,7 @@ class LlmManager:
     def output_json(self) -> None:
         tensors = self._interact_with_llm()
         final_results = []
-        for t , prefix in tensors:
+        for t, prefix in tensors:
             generated_json = prefix
             prefix_tokens_raw = self.sdk.encode(prefix)
             if hasattr(prefix_tokens_raw, "tolist"):
@@ -114,7 +122,7 @@ class LlmManager:
                 prefix_tokens = list(prefix_tokens_raw)
             input_ids = t.flatten().tolist() + prefix_tokens
             limit = 0
-            while limit < 100:
+            while limit < 200:
                 limit += 1
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
                 if hasattr(logi, "detach"):
@@ -129,5 +137,6 @@ class LlmManager:
                 result_obj = self._parse_generated_json(generated_json)
                 if result_obj:
                     final_results.append(result_obj)
-                    print(final_results)
                     break
+        print(final_results)
+        
