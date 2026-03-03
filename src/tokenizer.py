@@ -66,15 +66,15 @@ class LlmManager:
                 return self._get_next_token(logi_np, [tid])
             return None
 
-        if current_text.strip().endswith('"arguments":'):
+        if current_text.strip().endswith('"parameters":'):
             return force(' {') or force('{') or int(np.argmax(logi_np))
 
-        if current_text.strip().endswith('"arguments'):
+        if current_text.strip().endswith('"parameters'):
             return force('":') or force('": ')
 
         if current_text.endswith(' "') or current_text.endswith('\n  "'):
-            if '"arguments"' not in current_text and re.search(r'"function":\s*"[^"]+"', current_text):
-                return force('arguments')
+            if '"parameters"' not in current_text and re.search(r'"function":\s*"[^"]+"', current_text):
+                return force('parameters')
         if re.search(r'"function":\s*"[^"]+"$', current_text.strip()):
             return force('",') or force(',') or force('", ') or int(np.argmax(logi_np))
         return int(np.argmax(logi_np))
@@ -138,8 +138,8 @@ class LlmManager:
                 next_token_id = self._steps_output(logi_np, generated_json)
                 input_ids.append(next_token_id)
                 generated_json += self._decode_function(next_token_id)
-                print(generated_json)
-                if generated_json.count('{') == generated_json.count('}') and '"arguments"' in generated_json:
+                if generated_json.count('{') == generated_json.count('}') and '"parameters"' in generated_json:
+                    print(generated_json)
                     result_obj = self._parse_generated_json(generated_json)
                     if result_obj:
                         final_results.append(result_obj)
