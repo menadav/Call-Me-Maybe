@@ -24,7 +24,7 @@ class LlmManager:
             raise ValueError(e)
 
     def _interact_with_llm(self) -> list[tuple]:
-        defs_text: str = ""
+        defs_text = ""
         for func in self.definitions:
             params = ", ".join(func.parameters.keys())
             defs_text += f"\n- {func.name}({params}): {func.description}"
@@ -32,15 +32,18 @@ class LlmManager:
         for prompt in self.calling:
             json_prefill = f'{{\n  "prompt": "{prompt.prompt}",\n  "name": "'
             full_prompt = (
-                "Task: Select the correct name function "
-                "name and extract argument in JSON. \n"
-                f"Name: {defs_text}\n"
-                f"User request: {prompt.prompt}\n"
-                f"Response (JSON only):"
+                "SYSTEM: You are a professional API assistant. "
+                "You must ONLY use the function names provided in the list. "
+                "Do not invent new function names.\n"
+                f"FUNCTIONS LIST:{defs_text}\n\n"
+                "EXAMPLE:\n"
+                "User: Greet Batman\n"
+                "Assistant: {\"prompt\": \"Greet Batman\", \"name\": \"fn_greet_person\", \"parameters\": {\"name\": \"Batman\"}}\n\n"
+                f"USER REQUEST: {prompt.prompt}\n"
+                "ASSISTANT (JSON):"
             )
             tokens = self.sdk.encode(full_prompt)
-            prefill_tokens = self._to_list(self.sdk.encode(json_prefill))
-            results.append((tokens, json_prefill, prefill_tokens))
+            results.append((tokens, json_prefill))
         return results
 
     def _decode_function(self, token_id) -> str:
@@ -64,16 +67,17 @@ class LlmManager:
             if res is not None:
                 return self._get_next_token(logi_np, [res])
             return int(np.argmax(logi_np))
-        if current_text.endswith('"function": "'):
+        if current_text.endswith('"name": "'):
             return int(np.argmax(logi_np))
-        if re.search(r'"function": "[^"]+"$', current_text):
-            res = self.vocabulary.get('",\n  "parameters": {')
+        if re.search(r'"name": "[^"]+"$', current_text):
+            res = self.vocabulary.get('",\n  "parameters": {') or self.vocabulary.get('", "parameters": {')
             if res is not None:
                 return self._get_next_token(logi_np, [res])
             return safe_get('",')
         if current_text.endswith('",'):
-            return safe_get('\n  "parameters": {')
+            return safe_get('\n  "parameters": {') or safe_get(' "parameters": {')
         return int(np.argmax(logi_np))
+
 
     def _parse_generated_json(self, text: str) -> dict | None:
         try:
@@ -94,52 +98,28 @@ class LlmManager:
                 return None
             clean_str = text[start_idx:end_idx+1]
             obj = json.loads(clean_str)
-            if "arguments" in obj and "parameters" not in obj:
-                obj["parameters"] = obj.pop("arguments")
-            if "name" in obj and "function" not in obj:
-                obj["function"] = obj.pop("name")
-            params = obj.get("parameters")
+            prompt = obj.get("prompt")
+            name = obj.get("name") or obj.get("function")
+            params = obj.get("parameters") or obj.get("arguments", {})
             if isinstance(params, list):
-                obj["parameters"] = {
+                params = {
                     item['name']: item.get('value')
                     for item in params
                     if isinstance(item, dict) and 'name' in item
                 }
-            return obj
+            ordered_obj = {}
+            if prompt:
+                ordered_obj["prompt"] = prompt
+            ordered_obj["name"] = name
+            ordered_obj["parameters"] = params
+            return ordered_obj
         except Exception:
             return None
 
-    def _to_list(self, tensor_data):
-        if hasattr(tensor_data, "flatten"):
-            return tensor_data.flatten().tolist()
-        elif isinstance(tensor_data, np.ndarray):
-            return tensor_data.tolist()
-        else:
-            return list(tensor_data)
-
-    def output_json(self) -> None:
-        final_results = []
-        for t, prefix, prefill_tokens in self._interact_with_llm():
-            generated_json = prefix
-            input_ids = self._to_list(t) + self._to_list(prefill_tokens)
-            for _ in range(200):
-                logi_np = np.array(self.sdk.get_logits_from_input_ids(input_ids)).flatten()
-                next_token_id = self._steps_output(logi_np, generated_json)
-                input_ids.append(next_token_id)
-                generated_json += self._decode_function(next_token_id)
-                if generated_json.count('{') == generated_json.count('}') and "function" in generated_json:
-                    break
-                result_obj = self._parse_generated_json(generated_json)
-                if result_obj:
-                    final_results.append(result_obj)
-                    break
-            print(final_results)
-
-"""
     def output_json(self) -> None:
         tensors = self._interact_with_llm()
         final_results = []
-        for t, prefix, prefill_tokens in tensors:
+        for t, prefix in tensors:
             generated_json = prefix
             prefix_tokens_raw = self.sdk.encode(prefix)
             if hasattr(prefix_tokens_raw, "tolist"):
@@ -149,9 +129,7 @@ class LlmManager:
             else:
                 prefix_tokens = list(prefix_tokens_raw)
             input_ids = t.flatten().tolist() + prefix_tokens
-            limit = 0
-            while limit < 200:
-                limit += 1
+            for _ in range(150):
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
                 if hasattr(logi, "detach"):
                     logi_np = logi.detach().cpu().numpy().flatten()
@@ -160,11 +138,12 @@ class LlmManager:
                 next_token_id = self._steps_output(logi_np, generated_json)
                 input_ids.append(next_token_id)
                 generated_json += self._decode_function(next_token_id)
-                if generated_json.count('{') == generated_json.count('}') and "function" in generated_json:
+                print(generated_json)
+                if generated_json.count('{') == generated_json.count('}') and "parameters" in generated_json:
                     break
                 result_obj = self._parse_generated_json(generated_json)
                 if result_obj:
+                    print(result_obj)
                     final_results.append(result_obj)
                     break
         print(final_results)
-"""
