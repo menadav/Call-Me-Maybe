@@ -1,11 +1,11 @@
 import sys
 import json
 from pydantic import ValidationError
-from typing import Dict, Any
+from typing import Dict, Any, List
 from src.filter import JsonCalling, JsonDefinition
 
 
-def read_json(path: str) -> Dict[str, Any]:
+def read_json(path: str) -> Any:
     try:
         with open(path, 'r',  encoding='utf-8') as file:
             return json.load(file)
@@ -15,7 +15,7 @@ def read_json(path: str) -> Dict[str, Any]:
         raise ValueError("[ERROR]\n")
 
 
-def check_prompt(data: dict) -> list[dict]:
+def check_prompt(data: List[Dict[str, Any]]) -> List[JsonCalling]:
     try:
         return [JsonCalling(**item) for item in data]
     except ValidationError as e:
@@ -25,7 +25,7 @@ def check_prompt(data: dict) -> list[dict]:
         sys.exit(1)
 
 
-def check_definitions(data: dict) -> list[dict]:
+def check_definitions(data: List[Dict[str, Any]]) -> List[JsonDefinition]:
     try:
         return [JsonDefinition(**item) for item in data]
     except ValidationError as e:

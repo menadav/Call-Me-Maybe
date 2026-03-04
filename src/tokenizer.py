@@ -1,8 +1,8 @@
-from typing import List, Any, Dict
-from src.filter import JsonDefinition, JsonCalling
+import numpy as np
 import re
 import json
-import numpy as np
+from typing import List, Any, Dict, Optional
+from src.filter import JsonDefinition, JsonCalling
 
 
 class LlmManager:
@@ -45,11 +45,14 @@ class LlmManager:
             results.append((tokens, json_prefill))
         return results
 
-    def _decode_function(self, token_id) -> str:
+    def _decode_function(self, token_id: int) -> Any:
         word = self.sdk.decode([token_id])
         return word
 
-    def _get_next_token(self, logits_np, allowed_ids):
+    def _get_next_token(
+        self, logits_np: np.ndarray,
+        allowed_ids: List[Optional[int]]
+    ) -> int:
         valid_ids = [i for i in allowed_ids if i is not None]
         if not valid_ids:
             return int(np.argmax(logits_np))
@@ -60,11 +63,15 @@ class LlmManager:
             constrained_logits[idx] = logits_np[idx]
         return int(np.argmax(constrained_logits))
 
-    def _steps_output(self, logi_np, current_text):
-        def get_id(text):
+    def _steps_output(
+        self, logi_np: np.ndarray,
+        current_text: str
+    ) -> Optional[int | None]:
+
+        def get_id(text: str) -> Optional[int | None]:
             return self.vocabulary.get(text)
 
-        def force(token_str):
+        def force(token_str: str) -> Optional[int | None]:
             tid = get_id(token_str)
             if tid is not None:
                 return self._get_next_token(logi_np, [tid])
@@ -136,6 +143,8 @@ class LlmManager:
                 logi_np = np.array(logi).flatten()
                 next_token_id = self._steps_output(logi_np, generated_json)
                 input_ids.append(next_token_id)
+                if next_token_id is None:
+                    break
                 generated_json += self._decode_function(next_token_id)
                 if generated_json.count('{') == generated_json.count('}') \
                         and '"parameters"' in generated_json:

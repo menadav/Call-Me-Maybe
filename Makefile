@@ -19,18 +19,20 @@ $(INSTALLED_FLAG): pyproject.toml
 		rm -rf $(VENV_DIR); \
 		ln -s $(GOINFRE_VENV) $(VENV_DIR); \
 	fi
-	$(UV) sync
+	@$(UV) add --editable ./llm_sdk
+	@$(UV) add --dev flake8 mypy
+	@$(UV) sync
 	@touch $(INSTALLED_FLAG)
 
 run: install
-	$(PYTHON) -m src $(ARGS)
+	@$(PYTHON) -m src $(ARGS)
 
 debug: install
-	$(PYTHON) -m pdb -m src
+	@$(PYTHON) -m pdb -m src
 
 lint: install
-	$(UV) run flake8 src
-	$(UV) run mypy src \
+	@$(UV) run flake8 src
+	@$(UV) run mypy src \
 		--warn-return-any \
 		--warn-unused-ignores \
 		--ignore-missing-imports \

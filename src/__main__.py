@@ -12,7 +12,7 @@ except ImportError:
 from src.config_json import read_json, check_prompt, check_definitions
 from src.tokenizer import LlmManager
 from src.output import output_json
-from llm_sdk import Small_LLM_Model
+from llm_sdk.model import Small_LLM_Model
 
 
 def main() -> None:
@@ -52,8 +52,8 @@ def main() -> None:
     except ValidationError as e:
         sys.stderr.write(f"{str(e)}\n")
         sys.exit(1)
-    except Exception as e:
-        sys.stderr.write(e)
+    except Exception:
+        sys.stderr.write("[ERROR]")
         sys.exit(1)
 
 
