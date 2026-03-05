@@ -27,7 +27,7 @@ uv run python -m src [--functions_definition <file>] [--input <file>] [--output 
 
 ## Example usage
 
-#####1. Input Prompt
+1. Input Prompt
 We provide the AI with a specific task in natural language:
 ```
   {
@@ -35,7 +35,7 @@ We provide the AI with a specific task in natural language:
   }
 ```
 
-#####2. Function Definitions (Tool Selection)
+2. Function Definitions (Tool Selection)
 The AI is provided with a catalog of available functions. Its job is to select the most appropriate tool based on the user's request. In this case, it identifies fn_substitute_string_with_regex as the correct function:
 ```
   {
@@ -57,7 +57,7 @@ The AI is provided with a catalog of available functions. Its job is to select t
     }   
  }
 ```
-#####3. Output Parsing and Filtering
+3. Output Parsing and Filtering
 The final step involves parsing the AI's raw generation and filtering the relevant data. We extract the selected function and the mapped arguments to generate a structured JSON output that our system can execute:
 ```
 {
