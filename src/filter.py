@@ -1,10 +1,10 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict
 
 
 class JsonCalling(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    prompt: str
+    prompt: str = Field(min_length=1)
 
 
 class PropertyInfo(BaseModel):

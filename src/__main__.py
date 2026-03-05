@@ -2,6 +2,7 @@ import sys
 import os
 import argparse
 import json
+from typing import TYPE_CHECKING
 
 try:
     from pydantic import ValidationError
@@ -12,7 +13,13 @@ except ImportError:
 from src.config_json import read_json, check_prompt, check_definitions
 from src.tokenizer import LlmManager
 from src.output import output_json
-from llm_sdk.model import Small_LLM_Model
+if TYPE_CHECKING:
+    from src.llm_sdk import Small_LLM_Model
+else:
+    try:
+        from src.llm_sdk import Small_LLM_Model
+    except ModuleNotFoundError:
+        from llm_sdk import Small_LLM_Model
 
 
 def main() -> None:

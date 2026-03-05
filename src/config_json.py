@@ -19,7 +19,7 @@ def check_prompt(data: List[Dict[str, Any]]) -> List[JsonCalling]:
     try:
         return [JsonCalling(**item) for item in data]
     except ValidationError as e:
-        print("Expected validation error: calling_test.json")
+        print("Expected error: calling_test.json")
         for error in e.errors():
             print(f"- {error['msg']}")
         sys.exit(1)

@@ -1,4 +1,7 @@
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    raise ValueError("[ERROR] Run: make install\n")
 import re
 import json
 from typing import List, Any, Dict, Optional
@@ -27,18 +30,19 @@ class LlmManager:
         defs_text = ""
         for func in self.definitions:
             params = ", ".join(func.parameters.keys())
-            defs_text += f"\n- {func.name}({params}): {func.description},"
+            defs_text += f"\n- {func.name}({params}),: {func.description},"
         results = []
         for prompt in self.calling:
-            safe_prompt = prompt.prompt.replace('"', '\\"')
+            final_text = prompt.prompt
+            safe_prompt = final_text.replace('\\', '\\\\').replace('"', '\\"')
             json_prefill = (
                 f'{{\n  "prompt": "{safe_prompt}",'
                 '\n  "function": "'
             )
             full_prompt = (
                 "Task: Convert request to JSON.\n"
-                f"Functions: {defs_text}\n"
-                f"Request: {safe_prompt}\n"
+                f"Functions: {defs_text},\n"
+                f"Request: {safe_prompt},\n"
                 "JSON Output:"
             )
             tokens = self.sdk.encode(full_prompt)
@@ -115,6 +119,8 @@ class LlmManager:
             prompt = obj.get("prompt")
             name = obj.get("name") or obj.get("function")
             params = obj.get("parameters") or obj.get("arguments", {})
+            if isinstance(params, str):
+                params = params.replace('\\', '\\\\')
             if isinstance(params, list):
                 params = {
                     item['name']: item.get('value')
@@ -138,7 +144,7 @@ class LlmManager:
             prefix_tokens_raw = self.sdk.encode(prefix)
             prefix_tokens = prefix_tokens_raw.flatten().tolist()
             input_ids = t.flatten().tolist() + prefix_tokens
-            for _ in range(150):
+            for _ in range(120):
                 logi = self.sdk.get_logits_from_input_ids(input_ids)
                 logi_np = np.array(logi).flatten()
                 next_token_id = self._steps_output(logi_np, generated_json)
@@ -152,5 +158,5 @@ class LlmManager:
                     result_obj = self._parse_generated_json(generated_json)
                     if result_obj:
                         final_results.append(result_obj)
-                    break
+                        break
         return final_results
