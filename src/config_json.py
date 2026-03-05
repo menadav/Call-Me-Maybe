@@ -6,6 +6,13 @@ from src.filter import JsonCalling, JsonDefinition
 
 
 def read_json(path: str) -> Any:
+    """Loads a JSON file from the specified path.
+
+    Args:
+        path: File system path.
+    Returns:
+        Parsed JSON content.
+    """
     try:
         with open(path, 'r',  encoding='utf-8') as file:
             return json.load(file)
@@ -16,6 +23,13 @@ def read_json(path: str) -> Any:
 
 
 def check_prompt(data: List[Dict[str, Any]]) -> List[JsonCalling]:
+    """Validates data against JsonCalling schema.
+
+    Args:
+        data: List of raw dictionaries.
+    Returns:
+        List of validated JsonCalling objects.
+    """
     try:
         return [JsonCalling(**item) for item in data]
     except ValidationError as e:
@@ -26,6 +40,13 @@ def check_prompt(data: List[Dict[str, Any]]) -> List[JsonCalling]:
 
 
 def check_definitions(data: List[Dict[str, Any]]) -> List[JsonDefinition]:
+    """Validates data against JsonDefinition schema.
+
+    Args:
+        data: List of raw dictionaries.
+    Returns:
+        List of validated JsonDefinition objects.
+    """
     try:
         return [JsonDefinition(**item) for item in data]
     except ValidationError as e:

@@ -23,6 +23,23 @@ else:
 
 
 def main() -> None:
+    """
+    Parses arguments, validates input files, and executes
+    the LLM function calling workflow.
+
+    This function performs the following steps:
+    1. Sets up command-line argument parsing.
+    2. Validates the existence of input and definition files.
+    3. Reads and sanitizes JSON data into Pydantic models.
+    4. Initializes the LLM SDK and the LlmManager.
+    5. Generates structured JSON output and saves it to a file.
+
+    Raises:
+        FileNotFoundError: If input paths do not exist.
+        ValidationError: If JSON data doesn't match expected schemas.
+        JSONDecodeError: If input files are not valid JSON.
+        SystemExit: On any handled error to return a non-zero exit code.
+    """
     parser = argparse.ArgumentParser(
         description="Call Me Maybe - Function Calling Tool"
         )

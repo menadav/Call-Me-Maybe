@@ -9,6 +9,21 @@ from src.filter import JsonDefinition, JsonCalling
 
 
 class LlmManager:
+    """ Manages interaction with a Language Model for function
+        calling tasks.
+        This class handles prompt construction,
+        token-level constraints for JSON
+        generation, and parsing the LLM output into
+        structured data.
+
+        Attributes:
+        definitions (list[JsonDefinition]): List of available
+        function definitions.
+        calling (List[JsonCalling]): List of user requests/prompts to process.
+        sdk (Any): Instance of the SDK used for inference and tokenization.
+        vocabulary (Dict[str, int]): Token-to-ID mapping from the SDK.
+        id_to_token (Dict[int, str]): ID-to-token mapping for decoding.
+    """
     def __init__(
         self,
         definitions: list[JsonDefinition],
@@ -17,6 +32,7 @@ class LlmManager:
     ) -> None:
         self.definitions = definitions
         self.calling = calling
+        """ Initializes the LlmManager with tools and SDK. """
         self.sdk = sdk_instance
         try:
             vocab_path = self.sdk.get_path_to_vocab_file()
@@ -27,6 +43,12 @@ class LlmManager:
             raise ValueError(e)
 
     def _interact_with_llm(self) -> list[tuple]:
+        """ Prepares prompts and initial JSON structure for the LLM.
+
+        Returns:
+            list[tuple]: A list of tuples containing
+            (encoded_tokens, json_prefix).
+        """
         defs_text = ""
         for func in self.definitions:
             params = ", ".join(func.parameters.keys())
@@ -50,6 +72,14 @@ class LlmManager:
         return results
 
     def _decode_function(self, token_id: int) -> Any:
+        """ Decodes a single token ID back into a string.
+
+        Args:
+            token_id (int): The ID of the token to decode.
+
+        Returns:
+            Any: The decoded string representation of the token.
+        """
         word = self.sdk.decode([token_id])
         return word
 
@@ -57,6 +87,14 @@ class LlmManager:
         self, logits_np: np.ndarray,
         allowed_ids: List[Optional[int]]
     ) -> int:
+        """ Selects the best next token from logits, restricted to allowed IDs.
+        Args:
+            logits_np (np.ndarray): Array of logits from the model output.
+            allowed_ids (List[Optional[int]]): IDs that the model is
+            allowed to pick.
+        Returns:
+            int: The index (ID) of the selected token.
+        """
         valid_ids = [i for i in allowed_ids if i is not None]
         if not valid_ids:
             return int(np.argmax(logits_np))
@@ -71,6 +109,17 @@ class LlmManager:
         self, logi_np: np.ndarray,
         current_text: str
     ) -> Optional[int | None]:
+        """ Determines the next token based on current JSON generation state.
+        Forces specific tokens (like keys or structural characters) based on
+        regex patterns to ensure valid JSON output.
+
+        Args:
+            logi_np (np.ndarray): Current logits from the model.
+            current_text (str): The text generated so far.
+
+        Returns:
+            Optional[int]: The forced or most likely next token ID.
+        """
 
         def get_id(text: str) -> Optional[int | None]:
             return self.vocabulary.get(text)
@@ -98,6 +147,14 @@ class LlmManager:
         return int(np.argmax(logi_np))
 
     def _parse_generated_json(self, text: str) -> dict | None:
+        """ Cleans and parses the raw generated string into a
+            Python dictionary.
+        Args:
+            text (str): The raw text containing a JSON block.
+        Returns:
+            Optional[dict]: The parsed and formatted dictionary,
+            or None if invalid.
+        """
         try:
             start_idx = text.find('{')
             if start_idx == -1:
@@ -137,6 +194,12 @@ class LlmManager:
             return None
 
     def output_json(self) -> List[Dict[str, Any]]:
+        """ Executes the full generation loop to produce
+            structured JSON outputs.
+
+        Returns:
+            List[Dict[str, Any]]: List of results extracted from the model.
+        """
         tensors = self._interact_with_llm()
         final_results = []
         for t, prefix in tensors:
@@ -154,9 +217,8 @@ class LlmManager:
                 generated_json += self._decode_function(next_token_id)
                 if generated_json.count('{') == generated_json.count('}') \
                         and '"parameters"' in generated_json:
-                    print(generated_json)
                     result_obj = self._parse_generated_json(generated_json)
                     if result_obj:
                         final_results.append(result_obj)
-                        break
+                    break
         return final_results
