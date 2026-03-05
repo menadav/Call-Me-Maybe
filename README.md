@@ -37,7 +37,7 @@ We provide the AI with a specific task in natural language:
 
 #####2. Function Definitions (Tool Selection)
 The AI is provided with a catalog of available functions. Its job is to select the most appropriate tool based on the user's request. In this case, it identifies fn_substitute_string_with_regex as the correct function:
-
+```
   {
     "name": "fn_substitute_string_with_regex",
     "description": "Replace all occurrences matching a regex pattern in a string.",
@@ -56,15 +56,16 @@ The AI is provided with a catalog of available functions. Its job is to select t
       "type": "string"
     }   
  }
-
+```
 #####3. Output Parsing and Filtering
 The final step involves parsing the AI's raw generation and filtering the relevant data. We extract the selected function and the mapped arguments to generate a structured JSON output that our system can execute:
+```
 {
   "prompt": "Replace all vowels in 'Programming is fun' with asterisks",
   "function": "fn_substitute_string_with_regex",
   "parameters":{ "source_string": "Programming is fun", "regex": "aeiou", "replacement": "asterisk" }
 }
-
+```
 ## Resources
 * https://poloclub.github.io/transformer-explainer - Understand transformers.
 * https://docs.pydantic.dev/latest/ - Data validation
