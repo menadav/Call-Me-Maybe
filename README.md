@@ -64,8 +64,3 @@ The final step involves parsing the AI's raw generation and filtering the releva
   "parameters":{ "source_string": "Programming is fun", "regex": "aeiou", "replacement": "asterisk" }
 }
 ```
-## Resources
-* https://poloclub.github.io/transformer-explainer - Understand transformers.
-* https://docs.pydantic.dev/latest/ - Data validation
-* https://www.youtube.com/watch?v=VkWlLSTdHs8 - Understand decoding
-* Google Gemini 
