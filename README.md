@@ -1,16 +1,12 @@
 # 📞 Call Me Maybe
 
-> Structured function calling with a local 0.6B LLM using constrained decoding — 100% valid JSON, zero external APIs.
 
----
-
-## 📖 What is this?
+## Description
 
 **Call Me Maybe** is a project that explores **function calling with Large Language Models** through constrained decoding (logit masking). Given a natural language prompt and a catalog of available functions, the system reliably translates user intent into a structured, machine-executable JSON call with typed arguments.
 
 It uses `Qwen/Qwen3-0.6B` — a tiny, fully local model — and demonstrates that with proper **constrained decoding**, even a sub-1B parameter model can achieve **100% reliability** in producing valid, schema-compliant JSON outputs.
 
----
 
 ## ✨ Features
 
